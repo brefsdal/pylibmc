@@ -394,7 +394,7 @@ static PyObject *_PylibMC_parse_memcached_value(PylibMC_Client *self,
 
     switch (dtype) {
         case PYLIBMC_FLAG_PICKLE:
-            retval = PyObject_CallMethod((PyObject *)self, "deserialize", "s#", value, size);
+            retval = PyObject_CallMethod((PyObject *)self, "deserialize", "s#i", value, size, dtype);
             break;
         case PYLIBMC_FLAG_INTEGER:
         case PYLIBMC_FLAG_LONG:
@@ -1940,14 +1940,22 @@ static PyObject *_PylibMC_GetPickles(const char *attname) {
     return pickle_attr;
 }
 
-static PyObject *PylibMC_Client_deserialize(PylibMC_Client *self, PyObject *arg) {
+static PyObject *PylibMC_Client_deserialize(PylibMC_Client *self, PyObject *args) {
     PyObject *pickle_load;
     PyObject *retval = NULL;
+    int dtype = 0;
+    char *val;
+    Py_ssize_t val_len = 0;
 
     retval = NULL;
+
+    if (!PyArg_ParseTuple(args, "s#i", &val, &val_len, &dtype)) {
+        return NULL;
+    }
+
     pickle_load = _PylibMC_GetPickles("loads");
     if (pickle_load != NULL) {
-        retval = PyObject_CallFunctionObjArgs(pickle_load, arg, NULL);
+        retval = PyObject_CallFunctionObjArgs(pickle_load, val, NULL);
         Py_DECREF(pickle_load);
     }
 

@@ -300,7 +300,7 @@ static bool _PylibMC_IncrDecr(PylibMC_Client *, pylibmc_incr *, size_t);
 
 /* {{{ Type's method table */
 static PyMethodDef PylibMC_ClientType_methods[] = {
-    {"deserialize", (PyCFunction)PylibMC_Client_deserialize, METH_O,
+    {"deserialize", (PyCFunction)PylibMC_Client_deserialize, METH_VARARGS,
         "Deserialize a bytestring (str) retrieved from memcached. The default "
         "implementation uses `cPickle.loads`. Raise pylibmc.CacheMiss to "
         "simulate a cache miss."},
