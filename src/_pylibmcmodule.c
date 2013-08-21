@@ -395,10 +395,9 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
 #endif
 
     switch (dtype) {
-        case PYLIBMC_FLAG_PICKLE:
-            retval = _PylibMC_Unpickle(value, size);
+        case PYLIBMC_FLAG_JSON:
+            retval = _PylibMC_json_loads(value, size);
             break;
-        case PYLIBMC_FLAG_INTEGER:
         case PYLIBMC_FLAG_LONG:
         case PYLIBMC_FLAG_BOOL:
             /* PyInt_FromString doesn't take a length param and we're
@@ -415,6 +414,12 @@ static PyObject *_PylibMC_parse_memcached_value(char *value, size_t size,
               retval = PyBool_FromLong(PyInt_AS_LONG(tmp));
             }
             break;
+        case PYLIBMC_FLAG_DOUBLE:
+            tmp = PyString_FromStringAndSize(value, size);
+            retval = PyFloat_FromString(tmp, NULL);
+            break;
+        case PYLIBMC_FLAG_IGBINARY:
+        case PYLIBMC_FLAG_SERIALIZED:
         case PYLIBMC_FLAG_NONE:
             retval = PyString_FromStringAndSize(value, (Py_ssize_t)size);
             break;
@@ -842,7 +847,7 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
         store_val = PyObject_Str(tmp);
         Py_DECREF(tmp);
     } else if (PyInt_Check(value_obj)) {
-        serialized->flags |= PYLIBMC_FLAG_INTEGER;
+        serialized->flags |= PYLIBMC_FLAG_LONG;
         PyObject* tmp = PyNumber_Int(value_obj);
         store_val = PyObject_Str(tmp);
         Py_DECREF(tmp);
@@ -851,11 +856,17 @@ static int _PylibMC_SerializeValue(PyObject* key_obj,
         PyObject* tmp = PyNumber_Long(value_obj);
         store_val = PyObject_Str(tmp);
         Py_DECREF(tmp);
+    } else if (PyFloat_Check(value_obj)) {
+        serialized->flags |= PYLIBMC_FLAG_DOUBLE;
+        PyObject* tmp = PyNumber_Float(value_obj);
+        /* Use the repr representation of a float */
+        store_val = PyObject_Repr(tmp);
+        Py_DECREF(tmp);
     } else if(value_obj != NULL) {
-        /* we have no idea what it is, so we'll store it pickled */
+        /* we have no idea what it is, so we'll store it as json */
         Py_INCREF(value_obj);
-        serialized->flags |= PYLIBMC_FLAG_PICKLE;
-        store_val = _PylibMC_Pickle(value_obj);
+        serialized->flags |= PYLIBMC_FLAG_JSON;
+        store_val = _PylibMC_json_dumps(value_obj);
         Py_DECREF(value_obj);
     }
 
@@ -1968,49 +1979,49 @@ static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *self,
     return NULL;
 }
 
-/* {{{ Pickling */
-static PyObject *_PylibMC_GetPickles(const char *attname) {
-    PyObject *pickle, *pickle_attr;
+/* {{{ JSON */
+static PyObject *_PylibMC_GetJSON(const char *attname) {
+    PyObject *json, *json_attr;
 
-    pickle_attr = NULL;
-    /* Import cPickle or pickle. */
-    pickle = PyImport_ImportModule("cPickle");
-    if (pickle == NULL) {
+    json_attr = NULL;
+    /* Import ujson or json */
+    json = PyImport_ImportModule("ujson");
+    if (json == NULL) {
         PyErr_Clear();
-        pickle = PyImport_ImportModule("pickle");
+        json = PyImport_ImportModule("json");
     }
 
     /* Find attribute and return it. */
-    if (pickle != NULL) {
-        pickle_attr = PyObject_GetAttrString(pickle, attname);
-        Py_DECREF(pickle);
+    if (json != NULL) {
+        json_attr = PyObject_GetAttrString(json, attname);
+        Py_DECREF(json);
     }
 
-    return pickle_attr;
+    return json_attr;
 }
 
-static PyObject *_PylibMC_Unpickle(const char *buff, size_t size) {
-    PyObject *pickle_load;
+static PyObject *_PylibMC_json_loads(const char *buff, size_t size) {
+    PyObject *json_load;
     PyObject *retval = NULL;
 
     retval = NULL;
-    pickle_load = _PylibMC_GetPickles("loads");
-    if (pickle_load != NULL) {
-        retval = PyObject_CallFunction(pickle_load, "s#", buff, size);
-        Py_DECREF(pickle_load);
+    json_load = _PylibMC_GetJSON("loads");
+    if (json_load != NULL) {
+        retval = PyObject_CallFunction(json_load, "s#", buff, size);
+        Py_DECREF(json_load);
     }
 
     return retval;
 }
 
-static PyObject *_PylibMC_Pickle(PyObject *val) {
-    PyObject *pickle_dump;
+static PyObject *_PylibMC_json_dumps(PyObject *val) {
+    PyObject *json_dump;
     PyObject *retval = NULL;
 
-    pickle_dump = _PylibMC_GetPickles("dumps");
-    if (pickle_dump != NULL) {
-        retval = PyObject_CallFunction(pickle_dump, "Oi", val, -1);
-        Py_DECREF(pickle_dump);
+    json_dump = _PylibMC_GetJSON("dumps");
+    if (json_dump != NULL) {
+        retval = PyObject_CallFunction(json_dump, "O", val);
+        Py_DECREF(json_dump);
     }
 
     return retval;
