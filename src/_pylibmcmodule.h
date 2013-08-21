@@ -60,14 +60,18 @@ typedef ssize_t Py_ssize_t;
 /* {{{ Key flags from python-memcached
  * Some flags (like the compression one, ZLIB) are combined with others.
  */
-#define PYLIBMC_FLAG_NONE    0
-#define PYLIBMC_FLAG_PICKLE  (1 << 0)
-#define PYLIBMC_FLAG_INTEGER (1 << 1)
-#define PYLIBMC_FLAG_LONG    (1 << 2)
-/* Note: this is an addition! python-memcached doesn't handle bools. */
-#define PYLIBMC_FLAG_BOOL    (1 << 4)
-#define PYLIBMC_FLAG_TYPES   (PYLIBMC_FLAG_PICKLE | PYLIBMC_FLAG_INTEGER | \
-                              PYLIBMC_FLAG_LONG | PYLIBMC_FLAG_BOOL)
+#define PYLIBMC_FLAG_NONE       0
+#define PYLIBMC_FLAG_LONG       1
+#define PYLIBMC_FLAG_DOUBLE     2
+#define PYLIBMC_FLAG_BOOL       3
+#define PYLIBMC_FLAG_SERIALIZED 4
+#define PYLIBMC_FLAG_IGBINARY   5
+#define PYLIBMC_FLAG_JSON       6
+
+#define PYLIBMC_FLAG_TYPES   (PYLIBMC_FLAG_DOUBLE | \
+                              PYLIBMC_FLAG_LONG | PYLIBMC_FLAG_BOOL | \
+                              PYLIBMC_FLAG_SERIALIZED | PYLIBMC_FLAG_IGBINARY | \
+                              PYLIBMC_FLAG_JSON)
 /* Modifier flags */
 #define PYLIBMC_FLAG_ZLIB    (1 << 3)
 /* }}} */
@@ -290,8 +294,8 @@ static PyObject *PylibMC_ErrFromMemcachedWithKey(PylibMC_Client *, const char *,
         memcached_return, const char *, Py_ssize_t);
 static PyObject *PylibMC_ErrFromMemcached(PylibMC_Client *, const char *,
         memcached_return);
-static PyObject *_PylibMC_Unpickle(const char *, size_t);
-static PyObject *_PylibMC_Pickle(PyObject *);
+static PyObject *_PylibMC_json_loads(const char *, size_t);
+static PyObject *_PylibMC_json_dumps(PyObject *);
 static int _PylibMC_CheckKey(PyObject *);
 static int _PylibMC_CheckKeyStringAndSize(char *, Py_ssize_t);
 static int _PylibMC_SerializeValue(PyObject *key_obj,
